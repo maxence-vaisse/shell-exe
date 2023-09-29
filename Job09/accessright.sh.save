@@ -1,0 +1,105 @@
+#!/bin/bash
+
+#Specifiez  le chemin du fichier CSV
+csv_file="Shell_Userlist.csv"
+
+#Fonction pour crée un utilisateur
+create_user() {
+ id="$1"
+ prenom="$2"
+ nom="$3"
+ mdp="$4"
+ role="$5"
+
+Pour ajouter un groupe pour les utilisateurs dans votre script, vous pouvez utiliser la commande `groupadd` pour créer le groupe et ensuite assigner chaque utilisateur à ce groupe lors de leur création. Voici comment vous pouvez le faire en modifiant votre script :
+
+```bash
+#!/bin/bash
+
+# Spécifiez le nom du groupe pour les utilisateurs
+user_group="utilisateurs"
+
+# Spécifiez le chemin du fichier CSV
+csv_file="Shell_Userlist.csv"
+
+# Fonction pour créer un utilisateur
+create_user() {
+    id="$1"
+    prenom="$2"
+    nom="$3"
+    mdp="$4"
+    role="$5"
+
+    # Crée le groupe s'il n'existe pas encore
+    if ! grep -q "^$user_group:" /etc/group; then
+        groupadd "$user_group"
+        echo "Groupe $user_group créé."
+    fi
+
+    # Crée l'utilisateur et l'ajoute au groupe
+    username="$prenom"
+    full_name="$prenom $nom"
+    useradd -m -c "$full_name" -g "$user_group" "$username"
+
+    # Définit le mot de passe de l'utilisateur
+    echo "$username:$mdp" | chpasswd
+
+    echo "Utilisateur $username créé et ajouté au groupe $user_group."
+
+    # Si le rôle est "admin", ajoutez l'utilisateur au groupe sudo
+    if [ "$role" == "admin" ]; then
+        usermod -aG sudo "$username"
+        echo "L'utilisateur $username a été ajouté au groupe sudo."
+    fi
+}
+
+# ...
+
+# Reste du script inchangé
+```
+
+Dans ce code, nous avons ajouté une variable `user_group` pour spécifier le nom du groupe que vous souhaitez créer pour les utilisateurs. Le script vérifie d'abord si le groupe existe, le créé s'il n'existe pas encore, puis crée chaque utilisateur en les ajoutant à ce groupe avec l'option `-g "$user_group"` lors de la création de l'utilisateur.
+
+
+ #Création de l'utilisateur
+ username="$prenom"
+ full_name="$prenom $nom"
+ useradd -m -c "$full_name" "$username"
+
+ #Definit le mot de passe de l'utilisateur
+ echo "$username:$mdp" | chpasswd
+
+ echo "Utilisateur $username crée."
+
+ #Si le role est admin ajoutez l'utilisateur au groupe sudo
+ if [ "$role" == "admin" ]; then
+  usermod -aG sudo "$username"
+  echo "L'utilisateur $username a été ajouté au groupe sudo."
+ fi
+}
+
+ #Obtenez la somme de controle du fichier CSV
+ current_checksum=$(md5sum "$csv_file")
+
+ #Vérifiez si le fichier CSV a changé depuis la dernière execution
+ if [ "current_checkum" != "$previous_checkum" ]; then
+  echo "Le fichier CSV a été modifié. Relance du script."
+
+  #Lecture du fichier CSV ligne par ligne en supprimant l'en-tête
+  tail -n +2 "$csv_file" | while IFS=',' read -r id  prenom nom mdp role; do
+   #Vérifie si les variables nécessaires sont définies
+    if [ -n "$id" ] && [ -n "$prenom" ] && [ -n "$nom" ] && [ -n "$mdp" ] && [ -n "$role" ]; then
+     create_user "$id" "$prenom" "$nom" "$mdp" "$role"
+    else
+     echo "Ligne invalide dans le fichier CSV : $id, $prenom, $nom, $mdp, $role"
+    fi
+  done
+
+  #Met a jour la somme de contrôle du fichier CSV
+  previous_checksum="$current_checksum"
+ else
+  echo "Le fichier CSV n'a pas changé. Pas besoin de relancer le script."
+ fi
+
+ #Sauvegarde la somme de controle actuelle pour la prochaine exécution
+ echo "$current_checksum" > "$HOME/csv_checksum.txt"
